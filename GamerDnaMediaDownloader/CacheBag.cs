@@ -14,16 +14,26 @@ namespace GamerDnaMediaDownloader
 			if (ContainsMediaPage(url)) return false;
 
 			var mediaInfo = new MediaInfo {MediaPageUrl = url.AbsoluteUri};
-			Cache.AddToMediaInfoes(mediaInfo);
-			Cache.SaveChanges();
+			lock (Cache)
+			{
+				Cache.AddToMediaInfoes(mediaInfo);
+				Cache.SaveChanges();
+			}
 			return true;
 		}
 
 		public static bool ContainsMediaPage(Uri url)
 		{
-			int records = Cache.MediaInfoes.Count(i => i.MediaPageUrl == url.AbsoluteUri);
+			int records;
+			lock (Cache)
+				records = Cache.MediaInfoes.Count(i => i.MediaPageUrl == url.AbsoluteUri);
 			if (records > 1) throw new InvalidOperationException("Corrupted cache");
 			return records == 1;
+		}
+
+		public static void Flush()
+		{
+			lock (Cache) Cache.SaveChanges();
 		}
 
 		public static bool IsProcessionFinished()

@@ -106,6 +106,7 @@ namespace GamerDnaMediaDownloader
 					.Return(value => value.Trim())
 					.If(value => !string.IsNullOrEmpty(value));
 				mediaInfo.Processed = true;
+				CacheBag.Flush();
 				Log.Info("Media '{0}' was successfully processed", mediaInfo.Title);
 			}
 			catch (Exception e)
