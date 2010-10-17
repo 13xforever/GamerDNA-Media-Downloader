@@ -45,23 +45,28 @@ namespace GamerDnaMediaDownloader
 		public static int GetStartingPage()
 		{
 			var status = new LocalCacheEntities().ProcessionStatus.First();
+			if (status.Finished) status.LastMediaListPage = 1;
 			return status.LastMediaListPage;
 		}
 
 		public static void UpdateProcessionStatus(int currentPage)
 		{
-			var entities = new LocalCacheEntities();
-			var status = entities.ProcessionStatus.First();
-			status.LastMediaListPage = currentPage;
-			entities.SaveChanges();
+			using (var entities = new LocalCacheEntities())
+			{
+				var status = entities.ProcessionStatus.First();
+				status.LastMediaListPage = currentPage;
+				entities.SaveChanges();
+			}
 		}
 
 		public static void MarkProcessionStatusAsFinished()
 		{
-			var entities = new LocalCacheEntities();
-			var status = entities.ProcessionStatus.First();
-			status.Finished = true;
-			entities.SaveChanges();
+			using (var entities = new LocalCacheEntities())
+			{
+				var status = entities.ProcessionStatus.First();
+				status.Finished = true;
+				entities.SaveChanges();
+			}
 		}
 
 		public static IEnumerable<MediaInfo> GetUnprocessedPages()
@@ -69,16 +74,19 @@ namespace GamerDnaMediaDownloader
 			bool doneSomething = false;
 			do
 			{
-				if (!doneSomething) Thread.Sleep(1000);
-				var entities = new LocalCacheEntities();
-				var unprocessdPages = entities.MediaInfoes.Where(info => !info.Processed);
-				foreach (var page in unprocessdPages)
+				using (var entities = new LocalCacheEntities())
 				{
-					doneSomething = true;
-					yield return page;
+					var unprocessdPages = entities.MediaInfoes.Where(info => !info.Processed);
+					foreach (var page in unprocessdPages)
+					{
+						doneSomething = true;
+						yield return page;
+						entities.SaveChanges();
+					}
+					Thread.Sleep(60 * 1000);
 					entities.SaveChanges();
 				}
-			} while (doneSomething || !IsProcessionFinished());
+			} while (doneSomething && !IsProcessionFinished());
 		}
 
 		public static IEnumerable<MediaInfo> GetUnsavedMediaInfos()
@@ -86,16 +94,19 @@ namespace GamerDnaMediaDownloader
 			bool doneSomething = false;
 			do
 			{
-				if (!doneSomething) Thread.Sleep(1000);
-				var entities = new LocalCacheEntities();
-				var unprocessdPages = entities.MediaInfoes.Where(info => info.Processed && !info.Saved);
-				foreach (var page in unprocessdPages)
+				using (var entities = new LocalCacheEntities())
 				{
-					doneSomething = true;
-					yield return page;
+					var unprocessdPages = entities.MediaInfoes.Where(info => info.Processed && !info.Saved);
+					foreach (var page in unprocessdPages)
+					{
+						doneSomething = true;
+						yield return page;
+						entities.SaveChanges();
+					}
+					Thread.Sleep(60 * 1000);
 					entities.SaveChanges();
 				}
-			} while (doneSomething || !IsProcessionFinished());
+			} while (doneSomething && !IsProcessionFinished());
 		}
 	}
 }

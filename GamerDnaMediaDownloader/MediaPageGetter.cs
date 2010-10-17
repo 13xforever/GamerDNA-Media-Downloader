@@ -46,7 +46,8 @@ namespace GamerDnaMediaDownloader
 						}
 						catch (Exception e)
 						{
-							Log.Error("Error while processing page {0} of user list: {1}", startPage, e.Message);
+							Log.Error("Error while processing page {0} of media list: {1}", startPage, e.Message);
+							continue;
 						}
 						foreach (var mediaInfo in mediaInfos)
 						{
@@ -138,6 +139,7 @@ namespace GamerDnaMediaDownloader
 				File.WriteAllBytes(localFilename, content);
 				mediaInfo.LocalFilename = localFilename;
 				mediaInfo.Saved = true;
+				Log.InfoGreen("Media '{0}' was saved on disk", mediaInfo.Title);
 			}
 			catch(Exception e)
 			{
@@ -198,10 +200,13 @@ namespace GamerDnaMediaDownloader
 			var sb = new StringBuilder(content);
 			sb.Replace("<br>", "<br />");
 
+			sb.Replace("Ballzzz >_<", "Ballzzz &gt;_&lt;");
+
 			sb.Replace("&network", "&amp;network");
 			sb.Replace("&url", "&amp;url");
 			sb.Replace("&title", "&amp;title");
 			sb.Replace("& ", "&amp; ");
+			sb.Replace("&2.", "&amp;2. ");
 
 			sb.Replace("&laquo;", "&#xbb;");
 			sb.Replace("&raquo;", "&#xab;");

@@ -21,6 +21,11 @@ namespace GamerDnaMediaDownloader
 			WriteColored(ConsoleColor.White, message, args);
 		}
 
+		public static void InfoGreen(string message, params object[] args)
+		{
+			WriteColored(ConsoleColor.Green, message, args);
+		}
+
 		public static void Debug(string message, params object[] args)
 		{
 			WriteColored(ConsoleColor.Cyan, message, args);

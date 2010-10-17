@@ -32,8 +32,8 @@ namespace GamerDnaMediaDownloader
 			foreach (var url in MediaPageGetter.GetMediaPages())
 				if (CacheBag.AddNewMediaPage(url))
 					Log.Info("Got new media page: {0}", url.AbsoluteUri);
-				else
-					Log.Warning("Got old media page: {0}", url.AbsoluteUri);
+//				else
+//					Log.Warning("Got old media page: {0}", url.AbsoluteUri);
 			Log.Debug("Media page list processor finished...");
 		}
 
