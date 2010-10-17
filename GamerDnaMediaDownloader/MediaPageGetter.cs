@@ -11,14 +11,17 @@ namespace GamerDnaMediaDownloader
 {
 	internal static class MediaPageGetter
 	{
-		internal static IEnumerable<Uri> GetMediaPages(int startPage)
+		internal static IEnumerable<Uri> GetMediaPages()
 		{
+			int startPage = CacheBag.GetStartingPage();
 			const string baseUrl = "http://13xforever.gamerdna.com/media/";
 			string mediaListUrl = baseUrl;
 			if (startPage > 1) mediaListUrl += string.Format("?page={0}", startPage);
 			var searchResultElement = new XElement("div");
-			while (!string.IsNullOrEmpty(mediaListUrl))
+			bool allLinksAreOld = false;
+			while (!string.IsNullOrEmpty(mediaListUrl) && !(allLinksAreOld && CacheBag.IsProcessionFinished()))
 			{
+				allLinksAreOld = true;
 				Log.Info("Processing page {0} of media list", startPage);
 				string pageContent = GetPageContent(mediaListUrl);
 				const string divListContainer = "<div class=\"corners-center\">";
@@ -42,29 +45,43 @@ namespace GamerDnaMediaDownloader
 							Log.Error("Error while processing page {0} of user list: {1}", startPage, e.Message);
 						}
 						foreach (var mediaInfo in mediaInfos)
-							yield return mediaInfo.Attribute("href").Return(attr => new Uri(attr.Value));
+						{
+							var result = mediaInfo.Attribute("href").Return(attr => new Uri(attr.Value));
+							allLinksAreOld &= CacheBag.ContainsMediaPage(result);
+							yield return result;
+						}
 					}
 				}
 				XElement nextPageLink = searchResultElement.XPathSelectElement("//a[@class='next_page']");
-				mediaListUrl = nextPageLink == null ? null : string.Format("{0}?page={1}", baseUrl, ++startPage);
+				if (nextPageLink == null)
+				{
+					mediaListUrl = null;
+					CacheBag.MarkProcessionStatusAsFinished();
+					Log.Info("Procession of Media List page is finished");
+				}
+				else
+				{
+					mediaListUrl = string.Format("{0}?page={1}", baseUrl, ++startPage);
+					CacheBag.UpdateProcessionStatus(startPage);
+				}
 			}
 		}
 
-		internal static Media GetImageUrl(Uri mediaPageUrl)
+		internal static void GetImageInfo(MediaInfo mediaInfo)
 		{
-			string pageContent = GetPageContent(mediaPageUrl.AbsoluteUri);
+			string pageContent = GetPageContent(mediaInfo.MediaPageUrl);
 			int searchResultStart = pageContent.IndexOf("<div id=\"bd_shell\">");
 			if (searchResultStart == -1)
 			{
-				Log.Error("Can't find content for page {0}", mediaPageUrl.AbsoluteUri);
-				return null;
+				Log.Error("Can't find content for page {0}", mediaInfo.MediaPageUrl);
+				return;
 			}
 
 			int searchResultEnd = pageContent.IndexOf("<!-- End Container -->", searchResultStart + 1);
 			if (searchResultEnd == -1)
 			{
 				Log.Warning("Can't find the end of xml subtree.");
-				return null;
+				return;
 			}
 			
 			try
@@ -73,23 +90,53 @@ namespace GamerDnaMediaDownloader
 				var title = resultElement.XPathSelectElement("/div[@class='two_col_shell content_hd']/div[@class='col_primary']/div[@class='source']/div[@class='info']/h1");
 				var description = resultElement.XPathSelectElement("/div[@class='two_col_shell content_hd']/div[@class='col_primary']/p");
 				var mediaUrl = resultElement.XPathSelectElement("/div[@class='content_bd']/a");
-				return new Media
-				       	{
-				       		MediaPageUrl = mediaPageUrl,
-				       		MediaUrl = mediaUrl.Return(url => url.Attribute("href")).Return(attr => new Uri(attr.Value)),
-				       		Title = title.Value.Trim(),
-				       		Description = description.Return(e =>
-				       		                                 	{
-				       		                                 		var r = e.CreateReader();
-				       		                                 		r.MoveToContent();
-				       		                                 		return r.ReadInnerXml();
-				       		                                 	}),
-				       	};
+				mediaInfo.MediaUrl = mediaUrl.Return(url => url.Attribute("href")).Return(attr => attr.Value);
+				mediaInfo.Title = title.Value.Trim();
+				mediaInfo.Description = description
+					.Return(e =>
+					        	{
+					        		var r = e.CreateReader();
+					        		r.MoveToContent();
+					        		return r.ReadInnerXml();
+					        	})
+					.Return(value => value.Trim())
+					.If(value => !string.IsNullOrEmpty(value));
+				mediaInfo.Processed = true;
+				Log.Info("Media '{0}' was successfully processed", mediaInfo.Title);
 			}
 			catch (Exception e)
 			{
-				Log.Error("Error while processing page {0}: {1}", mediaPageUrl.AbsoluteUri, e.Message);
-				return null;
+				Log.Error("Error while processing page {0}: {1}", mediaInfo.MediaPageUrl, e.Message);
+			}
+		}
+
+		internal static void SaveMedia(MediaInfo mediaInfo)
+		{
+			const string pathToSave = @"E:\Temp\gDNA\";
+
+			byte[] content = GetData(mediaInfo.MediaUrl);
+			if (content == null)
+			{
+				Log.Error("Can't get content for {0}", mediaInfo.MediaUrl);
+				return;
+			}
+
+			string localFilename = new Uri(mediaInfo.MediaUrl).Return(uri => uri.LocalPath).Return(Path.GetFileName).Return(filename => Path.Combine(pathToSave, filename));
+			if (string.IsNullOrEmpty(localFilename))
+			{
+				Log.Error("Invalid filename for url {0}", mediaInfo.MediaUrl);
+				return;
+			}
+
+			try
+			{
+				File.WriteAllBytes(localFilename, content);
+				mediaInfo.LocalFilename = localFilename;
+				mediaInfo.Saved = true;
+			}
+			catch(Exception e)
+			{
+				Log.Error("Can't save media from {0}: {1}", mediaInfo.MediaUrl, e.Message);
 			}
 		}
 
@@ -97,7 +144,15 @@ namespace GamerDnaMediaDownloader
 		{
 			string pageContent = "";
 			WebRequest request = WebRequest.Create(url);
-			WebResponse response = request.GetResponse();
+			WebResponse response = null;
+			try
+			{
+				response = request.GetResponse();
+			}
+			catch (Exception e)
+			{
+				Log.Error("Can't get content for {0}: {1}", url, e.Message);
+			}
 
 			if (response != null)
 				using (Stream stream = response.GetResponseStream())
@@ -105,6 +160,30 @@ namespace GamerDnaMediaDownloader
 						using (var reader = new StreamReader(stream, Encoding.UTF8))
 							pageContent = reader.ReadToEnd();
 			return pageContent;
+		}
+
+		private static byte[] GetData(string url)
+		{
+			byte[] content = null;
+			WebRequest request = WebRequest.Create(url);
+			WebResponse response = null;
+			try
+			{
+				response = request.GetResponse();
+			}
+			catch (Exception e)
+			{
+				Log.Error("Can't get content for {0}: {1}", url, e.Message);
+			}
+			if (response != null)
+				using (Stream stream = response.GetResponseStream())
+					if (stream != null)
+						using (var memoryStream = new MemoryStream())
+						{
+							stream.CopyTo(memoryStream);
+							content = memoryStream.ToArray();
+						}
+			return content;
 		}
 
 		private static string Sanitize(string content)
