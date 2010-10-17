@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 
 namespace GamerDnaMediaDownloader
 {
@@ -40,38 +40,52 @@ namespace GamerDnaMediaDownloader
 
 		public static void UpdateProcessionStatus(int currentPage)
 		{
-			var status = new LocalCacheEntities().ProcessionStatus.First();
+			var entities = new LocalCacheEntities();
+			var status = entities.ProcessionStatus.First();
 			status.LastMediaListPage = currentPage;
-			Cache.SaveChanges();
+			entities.SaveChanges();
 		}
 
 		public static void MarkProcessionStatusAsFinished()
 		{
-			var status = new LocalCacheEntities().ProcessionStatus.First();
+			var entities = new LocalCacheEntities();
+			var status = entities.ProcessionStatus.First();
 			status.Finished = true;
-			Cache.SaveChanges();
+			entities.SaveChanges();
 		}
 
 		public static IEnumerable<MediaInfo> GetUnprocessedPages()
 		{
-			var entities = new LocalCacheEntities();
-			var unprocessdPages = entities.MediaInfoes.Where(info => !info.Processed);
-			foreach (var page in unprocessdPages)
+			bool doneSomething = false;
+			do
 			{
-				yield return page;
-				entities.SaveChanges();
-			}
+				if (!doneSomething) Thread.Sleep(1000);
+				var entities = new LocalCacheEntities();
+				var unprocessdPages = entities.MediaInfoes.Where(info => !info.Processed);
+				foreach (var page in unprocessdPages)
+				{
+					doneSomething = true;
+					yield return page;
+					entities.SaveChanges();
+				}
+			} while (doneSomething || !IsProcessionFinished());
 		}
 
 		public static IEnumerable<MediaInfo> GetUnsavedMediaInfos()
 		{
-			var entities = new LocalCacheEntities();
-			var unprocessdPages = entities.MediaInfoes.Where(info => info.Processed && !info.Saved);
-			foreach (var page in unprocessdPages)
+			bool doneSomething = false;
+			do
 			{
-				yield return page;
-				entities.SaveChanges();
-			}
+				if (!doneSomething) Thread.Sleep(1000);
+				var entities = new LocalCacheEntities();
+				var unprocessdPages = entities.MediaInfoes.Where(info => info.Processed && !info.Saved);
+				foreach (var page in unprocessdPages)
+				{
+					doneSomething = true;
+					yield return page;
+					entities.SaveChanges();
+				}
+			} while (doneSomething || !IsProcessionFinished());
 		}
 	}
 }

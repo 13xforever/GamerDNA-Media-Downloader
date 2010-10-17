@@ -14,9 +14,11 @@ namespace GamerDnaMediaDownloader
 
 			mediaPageListProcessor.Start();
 			mediaPageProcessor.Start();
+			mediaRetriever.Start();
 
 			mediaPageListProcessor.Join();
 			mediaPageProcessor.Join();
+			mediaRetriever.Join();
 
 			Log.Info("Press any key to exit...");
 			Console.ReadKey();
