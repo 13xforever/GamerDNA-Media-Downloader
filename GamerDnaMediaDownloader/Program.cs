@@ -8,6 +8,8 @@ namespace GamerDnaMediaDownloader
 	{
 		static void Main(string[] args)
 		{
+			Console.SetBufferSize(150, 9999);
+
 			var mediaPageListProcessor = new Thread(RefreshMediaPages);
 			var mediaPageProcessor = new Thread(GetMediaInfo);
 			var mediaRetriever = new Thread(RetrieveMedia);

@@ -68,10 +68,9 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>LocalCache.edmx</DependentUpon>
     </Compile>
-    <Compile Include="Media.cs" />
+    <Compile Include="Maybe.cs" />
     <Compile Include="MediaPageGetter.cs" />
     <Compile Include="Log.cs" />
-    <Compile Include="Maybe.cs" />
     <Compile Include="Program.cs" />
   </ItemGroup>
   <ItemGroup>

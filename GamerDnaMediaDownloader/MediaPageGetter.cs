@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Xml.Linq;
 using System.Xml.XPath;
 
@@ -27,7 +28,9 @@ namespace GamerDnaMediaDownloader
 				const string divListContainer = "<div class=\"corners-center\">";
 				int searchResultStart = pageContent.IndexOf(divListContainer);
 				searchResultStart = pageContent.IndexOf(divListContainer, searchResultStart + 1);
-				if (searchResultStart != -1)
+				if (searchResultStart == -1)
+					Thread.Sleep(1000);
+				else
 				{
 					int searchResultEnd = pageContent.IndexOf("<div class=\"corners-bottom\"", searchResultStart + 1);
 					if (searchResultEnd == -1)
@@ -51,18 +54,18 @@ namespace GamerDnaMediaDownloader
 							yield return result;
 						}
 					}
-				}
-				XElement nextPageLink = searchResultElement.XPathSelectElement("//a[@class='next_page']");
-				if (nextPageLink == null)
-				{
-					mediaListUrl = null;
-					CacheBag.MarkProcessionStatusAsFinished();
-					Log.Info("Procession of Media List page is finished");
-				}
-				else
-				{
-					mediaListUrl = string.Format("{0}?page={1}", baseUrl, ++startPage);
-					CacheBag.UpdateProcessionStatus(startPage);
+					XElement nextPageLink = searchResultElement.XPathSelectElement("//a[@class='next_page']");
+					if (nextPageLink == null)
+					{
+						mediaListUrl = null;
+						CacheBag.MarkProcessionStatusAsFinished();
+						Log.Info("Procession of Media List page is finished");
+					}
+					else
+					{
+						mediaListUrl = string.Format("{0}?page={1}", baseUrl, ++startPage);
+						CacheBag.UpdateProcessionStatus(startPage);
+					}
 				}
 			}
 		}
@@ -73,7 +76,7 @@ namespace GamerDnaMediaDownloader
 			int searchResultStart = pageContent.IndexOf("<div id=\"bd_shell\">");
 			if (searchResultStart == -1)
 			{
-				Log.Error("Can't find content for page {0}", mediaInfo.MediaPageUrl);
+				if (!string.IsNullOrEmpty(pageContent)) Log.Error("Can't find content for page {0}", mediaInfo.MediaPageUrl);
 				return;
 			}
 
@@ -117,7 +120,7 @@ namespace GamerDnaMediaDownloader
 			byte[] content = GetData(mediaInfo.MediaUrl);
 			if (content == null)
 			{
-				Log.Error("Can't get content for {0}", mediaInfo.MediaUrl);
+				//Log.Error("Can't get content for {0}", mediaInfo.MediaUrl);
 				return;
 			}
 
@@ -147,11 +150,12 @@ namespace GamerDnaMediaDownloader
 			WebResponse response = null;
 			try
 			{
+				request.Timeout = 60*1000;
 				response = request.GetResponse();
 			}
 			catch (Exception e)
 			{
-				Log.Error("Can't get content for {0}: {1}", url, e.Message);
+				//Log.Error("Can't get content for {0}: {1}", url, e.Message);
 			}
 
 			if (response != null)
@@ -169,11 +173,12 @@ namespace GamerDnaMediaDownloader
 			WebResponse response = null;
 			try
 			{
+				request.Timeout = 5*60*1000;
 				response = request.GetResponse();
 			}
 			catch (Exception e)
 			{
-				Log.Error("Can't get content for {0}: {1}", url, e.Message);
+				//Log.Error("Can't get content for {0}: {1}", url, e.Message);
 			}
 			if (response != null)
 				using (Stream stream = response.GetResponseStream())
