@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -195,9 +196,12 @@ namespace GamerDnaMediaDownloader
 		{
 			var sb = new StringBuilder(content);
 			sb.Replace("<br>", "<br />");
+
 			sb.Replace("&network", "&amp;network");
 			sb.Replace("&url", "&amp;url");
 			sb.Replace("&title", "&amp;title");
+			sb.Replace("& ", "&amp; ");
+
 			sb.Replace("&laquo;", "&#xbb;");
 			sb.Replace("&raquo;", "&#xab;");
 			sb.Replace("&hellip;", "&#x2026;");
