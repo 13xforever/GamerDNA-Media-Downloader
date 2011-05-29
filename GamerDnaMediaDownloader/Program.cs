@@ -22,6 +22,7 @@ namespace GamerDnaMediaDownloader
 			mediaPageProcessor.Join();
 			mediaRetriever.Join();
 
+			CacheBag.Flush();
 			Log.Info("Press any key to exit...");
 			Console.ReadKey();
 		}
@@ -34,6 +35,7 @@ namespace GamerDnaMediaDownloader
 					Log.Info("Got new media page: {0}", url.AbsoluteUri);
 //				else
 //					Log.Warning("Got old media page: {0}", url.AbsoluteUri);
+			CacheBag.Flush();
 			Log.Debug("Media page list processor finished...");
 		}
 
@@ -41,12 +43,14 @@ namespace GamerDnaMediaDownloader
 		{
 			Log.Debug("Media info getter started...");
 			Parallel.ForEach(CacheBag.GetUnprocessedPages(), MediaPageGetter.GetImageInfo);
+			CacheBag.Flush();
 			Log.Debug("Media info getter finished...");
 		}
 		private static void RetrieveMedia()
 		{
 			Log.Debug("Media retriever started...");
 			Parallel.ForEach(CacheBag.GetUnsavedMediaInfos(), MediaPageGetter.SaveMedia);
+			CacheBag.Flush();
 			Log.Debug("Media retriever finished...");
 		}
 	}
