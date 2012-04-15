@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Data.Objects;
 using System.Linq;
-using System.Threading;
 
 namespace GamerDnaMediaDownloader
 {
@@ -17,7 +17,7 @@ namespace GamerDnaMediaDownloader
 			lock (Cache)
 			{
 				Cache.AddToMediaInfoes(mediaInfo);
-				Cache.SaveChanges();
+				Cache.SaveChanges(SaveOptions.DetectChangesBeforeSave);
 			}
 			return true;
 		}
@@ -33,7 +33,12 @@ namespace GamerDnaMediaDownloader
 
 		public static void Flush()
 		{
-			lock (Cache) Cache.SaveChanges();
+			lock (Cache) Cache.SaveChanges(SaveOptions.DetectChangesBeforeSave);
+		}
+
+		public static void Shutdown()
+		{
+			lock (Cache) Cache.Dispose();
 		}
 
 		public static bool IsProcessionFinished()
@@ -55,7 +60,7 @@ namespace GamerDnaMediaDownloader
 			{
 				var status = entities.ProcessionStatus.First();
 				status.LastMediaListPage = currentPage;
-				entities.SaveChanges();
+				entities.SaveChanges(SaveOptions.DetectChangesBeforeSave);
 			}
 		}
 
@@ -65,7 +70,7 @@ namespace GamerDnaMediaDownloader
 			{
 				var status = entities.ProcessionStatus.First();
 				status.Finished = true;
-				entities.SaveChanges();
+				entities.SaveChanges(SaveOptions.DetectChangesBeforeSave);
 			}
 		}
 
@@ -83,8 +88,8 @@ namespace GamerDnaMediaDownloader
 						yield return page;
 						entities.SaveChanges();
 					}
-					Thread.Sleep(60 * 1000);
-					entities.SaveChanges();
+					//Thread.Sleep(60 * 1000);
+					entities.SaveChanges(SaveOptions.DetectChangesBeforeSave);
 				}
 			} while (doneSomething && !IsProcessionFinished());
 		}
@@ -103,8 +108,8 @@ namespace GamerDnaMediaDownloader
 						yield return page;
 						entities.SaveChanges();
 					}
-					Thread.Sleep(60 * 1000);
-					entities.SaveChanges();
+					//Thread.Sleep(60 * 1000);
+					entities.SaveChanges(SaveOptions.DetectChangesBeforeSave);
 				}
 			} while (doneSomething && !IsProcessionFinished());
 		}

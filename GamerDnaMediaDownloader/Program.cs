@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Linq;
 
 namespace GamerDnaMediaDownloader
 {
@@ -23,6 +25,8 @@ namespace GamerDnaMediaDownloader
 			mediaRetriever.Join();
 
 			CacheBag.Flush();
+			CacheBag.Shutdown();
+
 			Log.Info("Press any key to exit...");
 			Console.ReadKey();
 		}
@@ -35,7 +39,6 @@ namespace GamerDnaMediaDownloader
 					Log.Info("Got new media page: {0}", url.AbsoluteUri);
 //				else
 //					Log.Warning("Got old media page: {0}", url.AbsoluteUri);
-			CacheBag.Flush();
 			Log.Debug("Media page list processor finished...");
 		}
 
@@ -43,14 +46,18 @@ namespace GamerDnaMediaDownloader
 		{
 			Log.Debug("Media info getter started...");
 			Parallel.ForEach(CacheBag.GetUnprocessedPages(), MediaPageGetter.GetImageInfo);
-			CacheBag.Flush();
 			Log.Debug("Media info getter finished...");
 		}
 		private static void RetrieveMedia()
 		{
 			Log.Debug("Media retriever started...");
-			Parallel.ForEach(CacheBag.GetUnsavedMediaInfos(), MediaPageGetter.SaveMedia);
-			CacheBag.Flush();
+			IEnumerable<MediaInfo> mediaInfos;
+			while ((mediaInfos = CacheBag.GetUnsavedMediaInfos()).Count() > 0)
+			{
+				Parallel.ForEach(mediaInfos, MediaPageGetter.SaveMedia);
+				CacheBag.Flush();
+				Log.Debug("Flushed!");
+			}
 			Log.Debug("Media retriever finished...");
 		}
 	}
