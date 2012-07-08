@@ -17,16 +17,20 @@ namespace GamerDnaMediaDownloaderV2
 			{
 				store.Initialize();
 				Settings.Load();
+				bool mediaPageUpdaterIsRunning = true;
+				bool mediaInfoUpdaterIsRunning = true;
 				var mediaPageListProcessor = new Thread(() => RefreshMediaPages(store));
-				var mediaPageProcessor = new Thread(()=>GetMediaInfo(store));
-				var mediaRetriever = new Thread(()=>RetrieveMedia(store));
+				var mediaPageProcessor = new Thread(()=>GetMediaInfo(store, ref mediaPageUpdaterIsRunning));
+				var mediaRetriever = new Thread(()=>RetrieveMedia(store, ref mediaInfoUpdaterIsRunning));
 
 				mediaPageListProcessor.Start();
 				mediaPageProcessor.Start();
 				mediaRetriever.Start();
 
 				mediaPageListProcessor.Join();
+				mediaPageUpdaterIsRunning = false;
 				mediaPageProcessor.Join();
+				mediaInfoUpdaterIsRunning = false;
 				mediaRetriever.Join();
 				Settings.Save();
 			}
@@ -51,7 +55,7 @@ namespace GamerDnaMediaDownloaderV2
 			Log.Debug("Media page list processor finished...");
 		}
 
-		private static void GetMediaInfo(IDocumentStore store)
+		private static void GetMediaInfo(IDocumentStore store, ref bool higherLevelProcessorIsRunning)
 		{
 			Log.Debug("Media info getter started...");
 			RavenQueryStatistics stats;
@@ -63,11 +67,13 @@ namespace GamerDnaMediaDownloaderV2
 					Parallel.ForEach(list, MediaPageGetter.GetImageInfo);
 					session.SaveChanges();
 				}
+				if (stats.TotalResults == 0 && higherLevelProcessorIsRunning)
+					Thread.Sleep(100);
 			} while (stats.TotalResults > 0 || stats.IsStale);
 			Log.Debug("Media info getter finished...");
 		}
 
-		private static void RetrieveMedia(IDocumentStore store)
+		private static void RetrieveMedia(IDocumentStore store, ref bool higherLevelProcessorIsRunning)
 		{
 			Log.Debug("Media retriever started...");
 			RavenQueryStatistics unsavedStats;
@@ -80,6 +86,8 @@ namespace GamerDnaMediaDownloaderV2
 					Parallel.ForEach(list, MediaPageGetter.SaveMedia);
 					session.SaveChanges();
 					unprocessed = session.Query<Media>().Any(media => !media.Processed);
+					if ((unsavedStats.TotalResults == 0 || !unprocessed) && higherLevelProcessorIsRunning)
+						Thread.Sleep(100);
 				}
 			} while (unsavedStats.TotalResults > 0 || unprocessed || unsavedStats.IsStale);
 			Log.Debug("Media retriever finished...");
