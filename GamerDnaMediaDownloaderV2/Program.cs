@@ -8,9 +8,9 @@ using Raven.Client.Embedded;
 
 namespace GamerDnaMediaDownloaderV2
 {
-	class Program
+	static class Program
 	{
-		internal class Flags
+		private class Flags
 		{
 			public volatile bool mediaPageUpdaterIsRunning = true;
 			public volatile bool mediaInfoUpdaterIsRunning = true;

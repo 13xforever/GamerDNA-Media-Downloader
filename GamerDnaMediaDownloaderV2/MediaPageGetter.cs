@@ -16,7 +16,7 @@ namespace GamerDnaMediaDownloaderV2
 		internal static IEnumerable<Uri> GetMediaPages(IDocumentStore store)
 		{
 			int startPage = Settings.StartPage;
-			const string baseUrl = "http://13xforever.gamerdna.com/media/";
+			string baseUrl = Settings.BaseUrl;
 			string mediaListUrl = baseUrl;
 			if (startPage > 1) mediaListUrl += string.Format("?page={0}", startPage);
 			var searchResultElement = new XElement("div");
@@ -118,7 +118,7 @@ namespace GamerDnaMediaDownloaderV2
 
 		internal static void SaveMedia(Media media)
 		{
-			const string pathToSave = @"E:\Temp\gDNA\";
+			string pathToSave = Settings.PathToSave;
 
 			string localFilename = media.MediaUrl.Return(uri => uri.LocalPath).Return(Path.GetFileName).Return(filename => Path.Combine(pathToSave, filename));
 			if (string.IsNullOrEmpty(localFilename))
