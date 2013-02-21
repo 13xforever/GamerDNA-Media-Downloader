@@ -10,6 +10,12 @@ namespace GamerDnaMediaDownloaderV2
 {
 	class Program
 	{
+		internal class Flags
+		{
+			public volatile bool mediaPageUpdaterIsRunning = true;
+			public volatile bool mediaInfoUpdaterIsRunning = true;
+		}
+
 		static void Main(string[] args)
 		{
 			Console.SetBufferSize(150, 9999);
@@ -17,20 +23,19 @@ namespace GamerDnaMediaDownloaderV2
 			{
 				store.Initialize();
 				Settings.Load();
-				bool mediaPageUpdaterIsRunning = true;
-				bool mediaInfoUpdaterIsRunning = true;
+				var flags = new Flags();
 				var mediaPageListProcessor = new Thread(() => RefreshMediaPages(store));
-				var mediaPageProcessor = new Thread(()=>GetMediaInfo(store, ref mediaPageUpdaterIsRunning));
-				var mediaRetriever = new Thread(()=>RetrieveMedia(store, ref mediaInfoUpdaterIsRunning));
+				var mediaPageProcessor = new Thread(()=>GetMediaInfo(store, flags));
+				var mediaRetriever = new Thread(()=>RetrieveMedia(store, flags));
 
 				mediaPageListProcessor.Start();
 				mediaPageProcessor.Start();
 				mediaRetriever.Start();
 
 				mediaPageListProcessor.Join();
-				mediaPageUpdaterIsRunning = false;
+				flags.mediaPageUpdaterIsRunning = false;
 				mediaPageProcessor.Join();
-				mediaInfoUpdaterIsRunning = false;
+				flags.mediaInfoUpdaterIsRunning = false;
 				mediaRetriever.Join();
 				Settings.Save();
 			}
@@ -55,7 +60,7 @@ namespace GamerDnaMediaDownloaderV2
 			Log.Debug("Media page list processor finished...");
 		}
 
-		private static void GetMediaInfo(IDocumentStore store, ref bool higherLevelProcessorIsRunning)
+		private static void GetMediaInfo(IDocumentStore store, Flags flags)
 		{
 			Log.Debug("Media info getter started...");
 			RavenQueryStatistics stats;
@@ -67,13 +72,13 @@ namespace GamerDnaMediaDownloaderV2
 					Parallel.ForEach(list, MediaPageGetter.GetImageInfo);
 					session.SaveChanges();
 				}
-				if (stats.TotalResults == 0 && higherLevelProcessorIsRunning)
+				if (stats.TotalResults == 0 && flags.mediaPageUpdaterIsRunning)
 					Thread.Sleep(100);
-			} while (stats.TotalResults > 0 || stats.IsStale);
+			} while (stats.TotalResults > 0 || stats.IsStale || flags.mediaPageUpdaterIsRunning);
 			Log.Debug("Media info getter finished...");
 		}
 
-		private static void RetrieveMedia(IDocumentStore store, ref bool higherLevelProcessorIsRunning)
+		private static void RetrieveMedia(IDocumentStore store, Flags flags)
 		{
 			Log.Debug("Media retriever started...");
 			RavenQueryStatistics unsavedStats;
@@ -86,10 +91,10 @@ namespace GamerDnaMediaDownloaderV2
 					Parallel.ForEach(list, MediaPageGetter.SaveMedia);
 					session.SaveChanges();
 					unprocessed = session.Query<Media>().Any(media => !media.Processed);
-					if ((unsavedStats.TotalResults == 0 || !unprocessed) && higherLevelProcessorIsRunning)
+					if ((unsavedStats.TotalResults == 0 || !unprocessed) && flags.mediaInfoUpdaterIsRunning)
 						Thread.Sleep(100);
 				}
-			} while (unsavedStats.TotalResults > 0 || unprocessed || unsavedStats.IsStale);
+			} while (unsavedStats.TotalResults > 0 || unprocessed || unsavedStats.IsStale || flags.mediaInfoUpdaterIsRunning);
 			Log.Debug("Media retriever finished...");
 		}
 	}
