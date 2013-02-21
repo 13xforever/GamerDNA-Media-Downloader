@@ -1,0 +1,5 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<settings startPage="1" finished="false">
+  <baseUrl>http://username.gamerdna.com/media/</baseUrl>
+  <pathToSave>C:\Media\</pathToSave>
+</settings>
